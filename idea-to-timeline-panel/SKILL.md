@@ -39,14 +39,24 @@ This writes `planning.prompt.variant-01.md` ... `planning.prompt.variant-03.md` 
 
 ### B) Parse and render (Stage 2)
 
-Single plan:
+Single plan (输出目录名取 `plan` 文件名，如 `my-plan.json` -> `<run-id>/my-plan/`):
 
 ```bash
 python3 scripts/idea_to_timeline_pipeline_v1.py \
   --idea "<idea text>" \
   --title "<project title>" \
   --run-id <run-id> \
-  --plan-json path/to/plan.json
+  --plan-json path/to/my-plan.json
+```
+
+或者用 markdown(JSON 代码块) 作为单方案输入：
+
+```bash
+python3 scripts/idea_to_timeline_pipeline_v1.py \
+  --idea "<idea text>" \
+  --title "<project title>" \
+  --run-id <run-id> \
+  --plan-text path/to/my-plan.md
 ```
 
 Multiple alternatives (recommended for 2-3 storyboard options):
@@ -60,6 +70,10 @@ python3 scripts/idea_to_timeline_pipeline_v1.py \
 ```
 
 `plans-dir` can contain mixed `*.json` and `*.md` files. Each file becomes one variant output folder.
+
+Notes:
+- Do not mix `--plans-dir` with `--plan-json` / `--plan-text` in the same run.
+- If `--plans-dir` is omitted, the script will auto-read `outputs/timeline-panel/<run-id>/plans/` when that folder exists.
 
 ## Design Principles
 

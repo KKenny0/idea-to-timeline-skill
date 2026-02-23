@@ -53,6 +53,8 @@ python3 scripts/idea_to_timeline_pipeline_v1.py \
   --plans-dir outputs/timeline-panel/standalone-verify/plans
 ```
 
+You can also omit `--plans-dir`; the script auto-loads `outputs/timeline-panel/<run-id>/plans/` when present.
+
 ### 3) Review outputs
 
 - Variant index: `outputs/timeline-panel/standalone-verify/rendered.variants.json`

@@ -52,6 +52,10 @@ def slugify(text: str) -> str:
     return clean.strip("-")[:48] or "idea"
 
 
+def resolve_variant_id(raw: str) -> str:
+    return slugify(raw) or "variant"
+
+
 def extract_json_block(text: str) -> Dict[str, Any]:
     fenced = re.findall(r"```json\s*(\{[\s\S]*?\})\s*```", text)
     if fenced:
@@ -245,28 +249,49 @@ def generate_variant_prompts(out_dir: Path, idea: str, title: str, duration_sec:
     write_json(out_dir / "variants.manifest.json", manifest)
 
 
+def _append_plan(plans: List[Tuple[str, Path, str]], used_ids: Dict[str, int], variant_id: str, path: Path, mode: str) -> None:
+    base = resolve_variant_id(variant_id)
+    idx = used_ids.get(base, 0)
+    if idx == 0:
+        final_id = base
+    else:
+        final_id = f"{base}-{idx+1}"
+    used_ids[base] = idx + 1
+    plans.append((final_id, path, mode))
+
+
 def collect_plan_inputs(args: argparse.Namespace, out_dir: Path) -> List[Tuple[str, Path, str]]:
     plans: List[Tuple[str, Path, str]] = []  # (variant_id, path, mode)
+    used_ids: Dict[str, int] = {}
+
+    if args.plan_json and args.plan_text:
+        raise ValueError("Use either --plan-json or --plan-text for single-plan mode, not both.")
+
+    if args.plans_dir and (args.plan_json or args.plan_text):
+        raise ValueError("Do not mix --plans-dir with --plan-json/--plan-text.")
 
     if args.plan_json:
-        plans.append(("variant-01", Path(args.plan_json).resolve(), "json"))
+        p = Path(args.plan_json).resolve()
+        _append_plan(plans, used_ids, p.stem, p, "json")
+
     if args.plan_text:
-        plans.append(("variant-01", Path(args.plan_text).resolve(), "text"))
+        p = Path(args.plan_text).resolve()
+        _append_plan(plans, used_ids, p.stem, p, "text")
 
     if args.plans_dir:
         plans_dir = Path(args.plans_dir).resolve()
         for p in sorted(plans_dir.glob("*.json")):
-            plans.append((p.stem, p, "json"))
+            _append_plan(plans, used_ids, p.stem, p, "json")
         for p in sorted(plans_dir.glob("*.md")):
-            plans.append((p.stem, p, "text"))
+            _append_plan(plans, used_ids, p.stem, p, "text")
 
-    # also support default place: out_dir/plans/*.json|*.md
+    # default place: out_dir/plans/*.json|*.md
     default_plans_dir = out_dir / "plans"
     if not plans and default_plans_dir.exists():
         for p in sorted(default_plans_dir.glob("*.json")):
-            plans.append((p.stem, p, "json"))
+            _append_plan(plans, used_ids, p.stem, p, "json")
         for p in sorted(default_plans_dir.glob("*.md")):
-            plans.append((p.stem, p, "text"))
+            _append_plan(plans, used_ids, p.stem, p, "text")
 
     return plans
 
