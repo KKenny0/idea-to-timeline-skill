@@ -4,6 +4,8 @@ Each run writes to `outputs/timeline-panel/<run-id>/`.
 
 ## Core files for creators
 
+Per variant output folder (e.g. `<run-id>/variant-01/` or `<run-id>/<plan-file-stem>/`):
+
 - `timeline.story.json` — concise timeline story data
 - `timeline.panel.json` — panel-oriented view model
 - `panel.md` — readable timeline board
@@ -13,7 +15,14 @@ Each run writes to `outputs/timeline-panel/<run-id>/`.
 
 ## Internal helper files
 
-- `planning.prompt.md` — prompt template for Claude planning stage
+At run root (`<run-id>/`):
+
+- `planning.prompt.variant-01.md` ... `planning.prompt.variant-03.md` — prompts for Claude planning stage
+- `variants.manifest.json` — generated variant/style mapping
+- `rendered.variants.json` — rendered outputs index
+
+Per variant folder:
+
 - `timeline.plan.json` — normalized plan parsed from Claude output
 
 ## Success criteria
@@ -21,6 +30,6 @@ Each run writes to `outputs/timeline-panel/<run-id>/`.
 Treat the run as successful when:
 
 1. command exits with code `0`
-2. `index.html` exists and contains `Timeline Story Panel`
-3. `prompt-pack.md` exists and includes all shot ids
-4. `seedance-execution.md` exists and includes at least one segment block
+2. at least one variant folder contains `index.html` with `Timeline Story Panel`
+3. at least one variant folder contains `prompt-pack.md`
+4. run root contains `rendered.variants.json`

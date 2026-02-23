@@ -4,7 +4,31 @@ import json
 import re
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
+
+STYLE_PRESETS = [
+    {
+        "name": "cinematic-realism",
+        "label": "电影写实",
+        "genre": "现实电影",
+        "tone": "克制、沉浸",
+        "visual_style": "电影级写实光影",
+    },
+    {
+        "name": "stylized-animation",
+        "label": "风格化动画",
+        "genre": "动画叙事",
+        "tone": "夸张、节奏强",
+        "visual_style": "高饱和风格化动画",
+    },
+    {
+        "name": "commercial-short",
+        "label": "广告短片",
+        "genre": "品牌广告",
+        "tone": "强记忆点、快节奏",
+        "visual_style": "高级商业质感",
+    },
+]
 
 
 def write_text(path: Path, text: str) -> None:
@@ -107,11 +131,49 @@ def normalize_plan(raw: Dict[str, Any], idea: str, title: str, duration_sec: int
     }
 
 
-def build_planning_prompt(idea: str, title: str, duration_sec: int) -> str:
+def resolve_variant_specs(variant_count: int, variant_labels: str) -> List[Dict[str, str]]:
+    count = max(1, min(3, variant_count))
+
+    if variant_labels.strip():
+        labels = [x.strip() for x in variant_labels.split(",") if x.strip()]
+        if labels:
+            return [
+                {
+                    "id": f"variant-{i:02d}",
+                    "label": labels[i - 1] if i - 1 < len(labels) else labels[-1],
+                    "genre": "",
+                    "tone": "",
+                    "visual_style": "",
+                }
+                for i in range(1, count + 1)
+            ]
+
+    picked = STYLE_PRESETS[:count]
+    return [
+        {
+            "id": f"variant-{i:02d}",
+            "label": preset["label"],
+            "genre": preset["genre"],
+            "tone": preset["tone"],
+            "visual_style": preset["visual_style"],
+        }
+        for i, preset in enumerate(picked, start=1)
+    ]
+
+
+def build_planning_prompt(idea: str, title: str, duration_sec: int, variant: Dict[str, str]) -> str:
+    style_hint = f"风格锚点：{variant['label']}"
+    if variant.get("genre") or variant.get("tone") or variant.get("visual_style"):
+        style_hint += f"；genre={variant.get('genre','')}；tone={variant.get('tone','')}；visual_style={variant.get('visual_style','')}"
+
     return f"""# Idea-to-Timeline Planning Prompt (Seedance-oriented)
 
 你是专业的视频分镜策划 + Seedance 提示词工程助手。
 请基于用户 idea 直接生成 **JSON**（不要解释文字）。
+
+## 方案信息
+- variant_id: {variant['id']}
+- variant_style: {style_hint}
 
 ## 用户输入
 - title: {title}
@@ -140,9 +202,9 @@ def build_planning_prompt(idea: str, title: str, duration_sec: int) -> str:
     "forbidden_items": ["水印", "字幕", "Logo", "畸形肢体", "面部漂移"]
   }},
   "style": {{
-    "genre": "",
-    "tone": "",
-    "visual_style": "",
+    "genre": "{variant.get('genre','')}",
+    "tone": "{variant.get('tone','')}",
+    "visual_style": "{variant.get('visual_style','')}",
     "fps": 24
   }},
   "shots": [
@@ -168,6 +230,47 @@ def build_planning_prompt(idea: str, title: str, duration_sec: int) -> str:
 """
 
 
+def generate_variant_prompts(out_dir: Path, idea: str, title: str, duration_sec: int, variants: List[Dict[str, str]]) -> None:
+    prompt_paths: List[Dict[str, str]] = []
+    for variant in variants:
+        prompt = build_planning_prompt(idea, title, duration_sec, variant)
+        prompt_path = out_dir / f"planning.prompt.{variant['id']}.md"
+        write_text(prompt_path, prompt)
+        prompt_paths.append({"variant_id": variant["id"], "style": variant["label"], "prompt_path": str(prompt_path)})
+
+    manifest = {
+        "project": {"title": title, "idea": idea, "target_duration_sec": duration_sec},
+        "variants": prompt_paths,
+    }
+    write_json(out_dir / "variants.manifest.json", manifest)
+
+
+def collect_plan_inputs(args: argparse.Namespace, out_dir: Path) -> List[Tuple[str, Path, str]]:
+    plans: List[Tuple[str, Path, str]] = []  # (variant_id, path, mode)
+
+    if args.plan_json:
+        plans.append(("variant-01", Path(args.plan_json).resolve(), "json"))
+    if args.plan_text:
+        plans.append(("variant-01", Path(args.plan_text).resolve(), "text"))
+
+    if args.plans_dir:
+        plans_dir = Path(args.plans_dir).resolve()
+        for p in sorted(plans_dir.glob("*.json")):
+            plans.append((p.stem, p, "json"))
+        for p in sorted(plans_dir.glob("*.md")):
+            plans.append((p.stem, p, "text"))
+
+    # also support default place: out_dir/plans/*.json|*.md
+    default_plans_dir = out_dir / "plans"
+    if not plans and default_plans_dir.exists():
+        for p in sorted(default_plans_dir.glob("*.json")):
+            plans.append((p.stem, p, "json"))
+        for p in sorted(default_plans_dir.glob("*.md")):
+            plans.append((p.stem, p, "text"))
+
+    return plans
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Idea -> timeline panel pipeline (LLM-output first)")
     parser.add_argument("--idea", required=True, help="User idea text")
@@ -175,50 +278,71 @@ def main() -> int:
     parser.add_argument("--duration-sec", type=int, default=45, help="Target duration in seconds")
     parser.add_argument("--run-id", default=None, help="Run id under output root")
     parser.add_argument("--output-root", default="outputs/timeline-panel", help="Directory root for outputs")
-    parser.add_argument("--plan-json", default=None, help="Path to plan JSON file generated by Claude")
-    parser.add_argument("--plan-text", default=None, help="Path to plan text/markdown containing JSON block")
+
+    parser.add_argument("--variant-count", type=int, default=1, help="How many alternative storyboard variants to generate prompts for (1-3)")
+    parser.add_argument("--variant-labels", default="", help="Comma-separated custom labels for variants")
+
+    parser.add_argument("--plan-json", default=None, help="Path to a single plan JSON file generated by Claude")
+    parser.add_argument("--plan-text", default=None, help="Path to a single plan text/markdown containing JSON block")
+    parser.add_argument("--plans-dir", default=None, help="Directory containing multiple plan files (*.json/*.md), each treated as one variant")
     args = parser.parse_args()
 
     run_id = args.run_id or f"idea-{slugify(args.title)}"
     out_dir = Path(args.output_root).resolve() / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    planning_prompt = build_planning_prompt(args.idea, args.title, args.duration_sec)
-    write_text(out_dir / "planning.prompt.md", planning_prompt)
+    variants = resolve_variant_specs(args.variant_count, args.variant_labels)
+    generate_variant_prompts(out_dir, args.idea, args.title, args.duration_sec, variants)
 
-    if not args.plan_json and not args.plan_text:
-        print(f"Planning prompt generated at: {out_dir / 'planning.prompt.md'}")
-        print("Next step: let Claude generate plan JSON, save it, then rerun with --plan-json or --plan-text")
+    plans = collect_plan_inputs(args, out_dir)
+    if not plans:
+        print(f"Generated {len(variants)} planning prompts at: {out_dir}")
+        print("Next step: let Claude produce plan files (json/md) for each variant, put them in --plans-dir or outputs/.../plans/, then rerun.")
         return 0
 
-    if args.plan_json:
-        raw_plan = read_json(Path(args.plan_json).resolve())
-    else:
-        raw_text = Path(args.plan_text).resolve().read_text(encoding="utf-8")
-        raw_plan = extract_json_block(raw_text)
-
-    normalized_plan = normalize_plan(raw_plan, args.idea, args.title, args.duration_sec)
-    normalized_path = out_dir / "timeline.plan.json"
-    write_json(normalized_path, normalized_plan)
-
     panel_script = Path(__file__).resolve().parent / "timeline_panel_v1.py"
-    cmd = [
-        "python3",
-        str(panel_script),
-        "--plan",
-        str(normalized_path),
-        "--out-dir",
-        str(out_dir),
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(result.stdout)
-        print(result.stderr)
-        return result.returncode
 
-    if result.stdout.strip():
-        print(result.stdout.strip())
-    print(f"Pipeline completed. Open: {out_dir / 'index.html'}")
+    rendered: List[Dict[str, str]] = []
+    for variant_id, plan_path, mode in plans:
+        if mode == "json":
+            raw_plan = read_json(plan_path)
+        else:
+            raw_text = plan_path.read_text(encoding="utf-8")
+            raw_plan = extract_json_block(raw_text)
+
+        normalized_plan = normalize_plan(raw_plan, args.idea, args.title, args.duration_sec)
+        variant_out = out_dir / variant_id
+        normalized_path = variant_out / "timeline.plan.json"
+        write_json(normalized_path, normalized_plan)
+
+        cmd = [
+            "python3",
+            str(panel_script),
+            "--plan",
+            str(normalized_path),
+            "--out-dir",
+            str(variant_out),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(result.stdout)
+            print(result.stderr)
+            return result.returncode
+
+        rendered.append(
+            {
+                "variant_id": variant_id,
+                "plan_source": str(plan_path),
+                "output_dir": str(variant_out),
+                "index_html": str(variant_out / "index.html"),
+            }
+        )
+
+    write_json(out_dir / "rendered.variants.json", {"run_id": run_id, "variants": rendered})
+
+    print(f"Rendered {len(rendered)} variant(s). Root: {out_dir}")
+    for item in rendered:
+        print(f"- {item['variant_id']}: {item['index_html']}")
     return 0
 
 
