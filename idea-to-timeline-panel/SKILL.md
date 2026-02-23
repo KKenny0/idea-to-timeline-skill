@@ -16,7 +16,6 @@ Use a two-stage flow: **Claude plans first**, scripts parse and render after.
    - `timeline.story.json`
    - `timeline.panel.json`
    - `panel.md`
-   - `panel.html`
    - `index.html`
    - `prompt-pack.md`
    - `seedance-execution.md`

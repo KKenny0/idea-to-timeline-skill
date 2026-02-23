@@ -9,9 +9,9 @@ Per variant output folder (e.g. `<run-id>/variant-01/` or `<run-id>/<plan-file-s
 - `timeline.story.json` — concise timeline story data
 - `timeline.panel.json` — panel-oriented view model
 - `panel.md` — readable timeline board
-- `index.html` — clickable timeline board (same as `panel.html`)
+- `index.html` — clickable timeline board
 - `prompt-pack.md` — reusable professional video prompt pack
-- `seedance-execution.md` — long-video segment execution plan (Seedance 4-15s friendly)
+- `seedance-execution.md` — long-video segment execution plan (Seedance 4-15s friendly, includes prompt + dialogue + SFX)
 
 ## Internal helper files
 

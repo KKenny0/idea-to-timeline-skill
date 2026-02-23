@@ -218,7 +218,14 @@ def render_seedance_execution_plan(story: Dict[str, Any]) -> str:
         for shot in seg["shots"]:
             rel_start = round(shot["start_sec"] - seg["start_sec"], 2)
             rel_end = round(shot["end_sec"] - seg["start_sec"], 2)
-            lines.append(f"  - {rel_start}s-{rel_end}s | {shot['shot_id']} | {shot.get('prompt_video', '')}")
+            lines.append(f"  - {rel_start}s-{rel_end}s | {shot['shot_id']} | mode={shot.get('control_mode','')} | transition={shot.get('transition_to_next','')}")
+            lines.append(f"    Prompt: {shot.get('prompt_video', '')}")
+            if shot.get("dialogue"):
+                lines.append(f"    Dialogue: {shot['dialogue']}")
+            if shot.get("sfx"):
+                lines.append(f"    SFX: {shot['sfx']}")
+            if shot.get("negative_prompt"):
+                lines.append(f"    Negative: {shot['negative_prompt']}")
 
         refs = sorted({str(r) for shot in seg["shots"] for r in shot.get("references", [])})
         if refs:
@@ -349,7 +356,6 @@ def main() -> int:
     write_text(out_dir / "panel.md", render_panel_markdown(view))
 
     panel_html = render_panel_html(view)
-    write_text(out_dir / "panel.html", panel_html)
     write_text(out_dir / "index.html", panel_html)
     write_text(out_dir / "prompt-pack.md", render_prompt_pack(story))
     write_text(out_dir / "seedance-execution.md", render_seedance_execution_plan(story))
