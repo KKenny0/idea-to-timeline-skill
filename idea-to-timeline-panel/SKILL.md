@@ -18,7 +18,7 @@ Use a two-stage flow: **Claude plans first**, scripts parse and render after.
    - `panel.md`
    - `index.html`
    - `prompt-pack.md`
-   - `seedance-execution.md`
+   - `seedance-execution.md` (copy-ready execution blocks per segment, including Prompt + Dialogue + SFX + Negative)
    - `rendered.variants.json` (when multi-variant is enabled)
 
 ## Commands

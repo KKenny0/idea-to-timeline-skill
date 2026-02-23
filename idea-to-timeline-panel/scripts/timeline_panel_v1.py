@@ -205,6 +205,7 @@ def render_seedance_execution_plan(story: Dict[str, Any]) -> str:
     if len(segments) > 1:
         lines.append("说明：Seedance 单次生成建议 4-15 秒，已自动拆分为多段。")
         lines.append("第1段常规生成；第2段起建议使用“视频延长”承接上一段输出。")
+        lines.append("下方每段都提供可直接粘贴的执行块（含 Prompt / Dialogue / SFX / Negative）。")
         lines.append("")
 
     for i, seg in enumerate(segments, start=1):
@@ -212,26 +213,33 @@ def render_seedance_execution_plan(story: Dict[str, Any]) -> str:
         if i == 1:
             lines.append("- Operation: 常规生成")
         else:
-            lines.append(f"- Operation: 视频延长（上传上一段结果为 @视频1）")
-        lines.append("- Timeline Prompt:")
-
-        for shot in seg["shots"]:
-            rel_start = round(shot["start_sec"] - seg["start_sec"], 2)
-            rel_end = round(shot["end_sec"] - seg["start_sec"], 2)
-            lines.append(f"  - {rel_start}s-{rel_end}s | {shot['shot_id']} | mode={shot.get('control_mode','')} | transition={shot.get('transition_to_next','')}")
-            lines.append(f"    Prompt: {shot.get('prompt_video', '')}")
-            if shot.get("dialogue"):
-                lines.append(f"    Dialogue: {shot['dialogue']}")
-            if shot.get("sfx"):
-                lines.append(f"    SFX: {shot['sfx']}")
-            if shot.get("negative_prompt"):
-                lines.append(f"    Negative: {shot['negative_prompt']}")
+            lines.append("- Operation: 视频延长（上传上一段结果为 @视频1）")
 
         refs = sorted({str(r) for shot in seg["shots"] for r in shot.get("references", [])})
         if refs:
             lines.append(f"- References: {', '.join(refs)}")
 
         lines.append(f"- Forbidden: 禁止出现{', '.join(forbidden)}")
+        lines.append("- Segment Prompt (copy-ready):")
+        lines.append("```text")
+
+        if i > 1:
+            lines.append("[视频延长模式] 延长 @视频1，并保持上一段结尾主体/构图连续。")
+
+        for shot in seg["shots"]:
+            rel_start = round(shot["start_sec"] - seg["start_sec"], 2)
+            rel_end = round(shot["end_sec"] - seg["start_sec"], 2)
+            lines.append(f"{rel_start}s-{rel_end}s | {shot['shot_id']} | mode={shot.get('control_mode','')} | transition={shot.get('transition_to_next','')}")
+            lines.append(f"Prompt: {shot.get('prompt_video', '')}")
+            if shot.get("dialogue"):
+                lines.append(f"Dialogue: {shot['dialogue']}")
+            if shot.get("sfx"):
+                lines.append(f"SFX: {shot['sfx']}")
+            if shot.get("negative_prompt"):
+                lines.append(f"Negative: {shot['negative_prompt']}")
+            lines.append("")
+
+        lines.append("```")
         lines.append("")
 
     return "\n".join(lines).strip() + "\n"

@@ -11,7 +11,7 @@ Per variant output folder (e.g. `<run-id>/variant-01/` or `<run-id>/<plan-file-s
 - `panel.md` — readable timeline board
 - `index.html` — clickable timeline board
 - `prompt-pack.md` — reusable professional video prompt pack
-- `seedance-execution.md` — long-video segment execution plan (Seedance 4-15s friendly, includes prompt + dialogue + SFX)
+- `seedance-execution.md` — long-video segment execution plan (Seedance 4-15s friendly, copy-ready text blocks with prompt + dialogue + SFX + negative)
 
 ## Internal helper files
 
