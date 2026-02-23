@@ -60,7 +60,6 @@ def normalize_plan(raw: Dict[str, Any], idea: str, title: str, duration_sec: int
 
         if end <= start:
             end = start + 1.0
-
         last_end = end
 
         refs = shot.get("references") or []
@@ -76,6 +75,8 @@ def normalize_plan(raw: Dict[str, Any], idea: str, title: str, duration_sec: int
                 "scene": shot.get("scene", ""),
                 "action": shot.get("action", ""),
                 "camera": shot.get("camera", ""),
+                "dialogue": shot.get("dialogue", ""),
+                "sfx": shot.get("sfx", ""),
                 "mode": shot.get("mode", shot.get("control_mode", "i2v")),
                 "transition": shot.get("transition", shot.get("transition_to_next", "cut")),
                 "prompt_video": shot.get("prompt_video") or shot.get("prompt") or "",
@@ -84,37 +85,49 @@ def normalize_plan(raw: Dict[str, Any], idea: str, title: str, duration_sec: int
             }
         )
 
+    normalized_shots.sort(key=lambda x: x["start_sec"])
+
+    forbidden_items = project.get("forbidden_items") or ["水印", "字幕", "Logo", "畸形肢体", "面部漂移"]
+
     return {
         "project": {
             "title": project.get("title", title),
             "idea": project.get("idea", idea),
             "target_duration_sec": project.get("target_duration_sec", duration_sec),
             "aspect_ratio": project.get("aspect_ratio", "16:9"),
+            "forbidden_items": forbidden_items,
         },
         "style": {
             "genre": style.get("genre", ""),
             "tone": style.get("tone", ""),
             "visual_style": style.get("visual_style", ""),
+            "fps": style.get("fps", 24),
         },
         "shots": normalized_shots,
     }
 
 
 def build_planning_prompt(idea: str, title: str, duration_sec: int) -> str:
-    return f"""# Idea-to-Timeline Planning Prompt
+    return f"""# Idea-to-Timeline Planning Prompt (Seedance-oriented)
 
-你是视频分镜策划助手。请基于用户 idea 直接生成 **JSON**（不要解释文字）。
+你是专业的视频分镜策划 + Seedance 提示词工程助手。
+请基于用户 idea 直接生成 **JSON**（不要解释文字）。
 
 ## 用户输入
 - title: {title}
 - idea: {idea}
 - target_duration_sec: {duration_sec}
 
-## 产出要求
-1. 先考虑叙事结构（铺垫/冲突/反转/收束）和时间线。
-2. 每个镜头都要给可直接复用的视频生成提示词 `prompt_video`。
-3. 模式 `mode` 在以下值内选择：`t2v` / `i2v` / `keyframes` / `multiref`。
-4. 结构尽量简洁，不要输出无关字段。
+## 规划原则（借鉴 Seedance 工作流）
+1. 先定剪辑语法：镜头是“切”还是“连续推进”。
+2. 再选控制模式：
+   - `i2v`：开场构图锁定、适合 hard cut
+   - `keyframes`：A→B 连续过渡
+   - `multiref`：角色/服装/道具一致性
+   - `t2v`：方向探索与氛围段落
+3. 每个镜头都输出可直接用于 Seedance 的 `prompt_video`。
+4. 超过 15 秒时，按时间线合理拆分镜头（脚本会进一步按 15 秒段输出执行方案）。
+5. 结尾始终带禁止项，避免水印/字幕/Logo/畸形等问题。
 
 ## 输出 JSON 结构（必须严格遵循）
 ```json
@@ -123,12 +136,14 @@ def build_planning_prompt(idea: str, title: str, duration_sec: int) -> str:
     "title": "{title}",
     "idea": "{idea}",
     "target_duration_sec": {duration_sec},
-    "aspect_ratio": "16:9"
+    "aspect_ratio": "16:9",
+    "forbidden_items": ["水印", "字幕", "Logo", "畸形肢体", "面部漂移"]
   }},
   "style": {{
     "genre": "",
     "tone": "",
-    "visual_style": ""
+    "visual_style": "",
+    "fps": 24
   }},
   "shots": [
     {{
@@ -139,6 +154,8 @@ def build_planning_prompt(idea: str, title: str, duration_sec: int) -> str:
       "scene": "",
       "action": "",
       "camera": "",
+      "dialogue": "",
+      "sfx": "",
       "mode": "i2v",
       "transition": "cut",
       "prompt_video": "",

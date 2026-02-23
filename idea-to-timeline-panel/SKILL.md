@@ -1,6 +1,6 @@
 ---
 name: idea-to-timeline-panel
-description: Turn a raw video idea/logline into a practical timeline story panel and reusable professional video prompts. Use when a user asks for storyboard planning, shot timeline design, mode selection (t2v/i2v/keyframes/multiref), creator-facing panel export, or prompt-pack generation from an initial concept.
+description: Turn a raw video idea/logline into a practical timeline story panel and reusable professional Seedance-ready video prompts. Use when a user asks for storyboard planning, shot timeline design, mode selection (t2v/i2v/keyframes/multiref), creator-facing panel export, long-video segmented execution planning for durations over 15 seconds, or prompt-pack generation from an initial concept.
 ---
 
 # Idea To Timeline Panel
@@ -19,6 +19,7 @@ Use a two-stage flow: **Claude plans first**, scripts parse and render after.
    - `panel.html`
    - `index.html`
    - `prompt-pack.md`
+   - `seedance-execution.md`
 
 ## Commands
 
@@ -57,14 +58,16 @@ python3 scripts/idea_to_timeline_pipeline_v1.py \
 ## Design Principles
 
 - Prefer **intent-first planning** over hardcoded shot templates.
-- Keep output compact and creator-facing (timeline board + prompt pack).
-- Let mode choice follow shot language:
+- Keep output compact and creator-facing (timeline board + prompt pack + execution plan).
+- Keep mode choice aligned with shot language:
   - `i2v` for clear cut-in opening composition
   - `keyframes` for continuous transition goals
   - `multiref` for identity/style consistency
   - `t2v` for direction-first ideation shots
+- For long videos, output segmented execution guidance (Seedance-friendly 4-15s chunks).
 
 ## References
 
 - Mode selection and timeline thinking: `references/mode-selection.md`
+- Seedance platform specs and constraints: `references/seedance-platform-spec.md`
 - Output artifact definitions: `references/output-artifacts.md`
