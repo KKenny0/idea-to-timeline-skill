@@ -1,74 +1,70 @@
 ---
 name: idea-to-timeline-panel
-description: Convert a plain-text story idea into a production-ready timeline execution pack and clickable HTML creator panel. Use when a user asks to go from “idea/concept/logline” to shot-by-shot timeline planning, validation, prompt pack generation, asset checklist generation, or an openable index.html panel for review/export.
+description: Turn a raw video idea/logline into a practical timeline story panel and reusable professional video prompts. Use when a user asks for storyboard planning, shot timeline design, mode selection (t2v/i2v/keyframes/multiref), creator-facing panel export, or prompt-pack generation from an initial concept.
 ---
 
 # Idea To Timeline Panel
 
-Generate a deterministic timeline pack from a single idea, then render a creator-friendly HTML board for execution review.
-
-## Quick Start
-
-1. Run the pipeline script:
-
-```bash
-python3 scripts/idea_to_timeline_pipeline_v1.py \
-  --idea "社恐程序员为了白嫖自助餐误入相亲大会，最后反向圈粉" \
-  --title "Kenny Social Anxiety Dating Event" \
-  --run-id idea-kenny-standalone
-```
-
-2. Open the generated panel:
-
-```bash
-open outputs/timeline-panel/idea-kenny-standalone/index.html
-```
+Use a two-stage flow: **Claude plans first**, scripts parse and render after.
 
 ## Workflow
 
-1. Parse user idea and metadata.
-2. Build a 5-shot deterministic `timeline.v1` scaffold.
-3. Validate temporal and control-mode constraints.
-4. Export execution artifacts:
-   - `timeline.input.v1.json`
-   - `timeline.v1.json`
-   - `timeline.view.v1.json`
-   - `validation.report.json`
+1. Read user idea and target duration.
+2. Make Claude output a compact JSON shot plan (or markdown containing a JSON block).
+3. Parse that output into `timeline.plan.json`.
+4. Render creator artifacts:
+   - `timeline.story.json`
+   - `timeline.panel.json`
    - `panel.md`
    - `panel.html`
    - `index.html`
-   - `asset-checklist.md`
-   - `shot-prompt-pack.md`
+   - `prompt-pack.md`
 
 ## Commands
 
-### A) End-to-end (recommended)
+### A) Generate planning prompt (Stage 1)
 
 ```bash
 python3 scripts/idea_to_timeline_pipeline_v1.py \
   --idea "<idea text>" \
   --title "<project title>" \
-  --run-id <optional-run-id> \
   --duration-sec 45 \
-  --output-root outputs/timeline-panel
+  --run-id <run-id>
 ```
 
-### B) Render panel from an existing timeline JSON
+This writes `planning.prompt.md`. Then let Claude generate plan JSON using that prompt.
+
+### B) Parse and render with plan JSON (Stage 2)
 
 ```bash
-python3 scripts/timeline_panel_v1.py \
-  --timeline path/to/timeline.v1.json \
-  --out-dir outputs/timeline-panel/custom-run
+python3 scripts/idea_to_timeline_pipeline_v1.py \
+  --idea "<idea text>" \
+  --title "<project title>" \
+  --run-id <run-id> \
+  --plan-json path/to/plan.json
 ```
 
-## Editing Rules
+or with markdown text containing a JSON code block:
 
-- Keep `description` in frontmatter explicit about trigger phrases (idea/logline/timeline/panel/export).
-- Keep SKILL.md concise; put detailed contracts in `references/`.
-- Validate every script change by running at least one full end-to-end sample.
-- If validation fails (`error_count > 0`), fix timeline fields before claiming completion.
+```bash
+python3 scripts/idea_to_timeline_pipeline_v1.py \
+  --idea "<idea text>" \
+  --title "<project title>" \
+  --run-id <run-id> \
+  --plan-text path/to/plan.md
+```
+
+## Design Principles
+
+- Prefer **intent-first planning** over hardcoded shot templates.
+- Keep output compact and creator-facing (timeline board + prompt pack).
+- Let mode choice follow shot language:
+  - `i2v` for clear cut-in opening composition
+  - `keyframes` for continuous transition goals
+  - `multiref` for identity/style consistency
+  - `t2v` for direction-first ideation shots
 
 ## References
 
-- Timeline contract and field map: `references/timeline-v1-contract.md`
-- Output artifact descriptions: `references/output-artifacts.md`
+- Mode selection and timeline thinking: `references/mode-selection.md`
+- Output artifact definitions: `references/output-artifacts.md`

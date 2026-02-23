@@ -1,21 +1,24 @@
-# Output Artifacts
+# Output Artifacts (Simplified)
 
-For each run, the skill writes to `outputs/timeline-panel/<run-id>/` (or custom `--output-root`):
+Each run writes to `outputs/timeline-panel/<run-id>/`.
 
-- `timeline.input.v1.json`: deterministic planner output before panel rendering
-- `timeline.v1.json`: canonical timeline used for execution
-- `timeline.view.v1.json`: enriched view model for creator review
-- `validation.report.json`: error/warning report and `valid` flag
-- `panel.md`: text review board
-- `panel.html`: HTML board
-- `index.html`: same as `panel.html` for direct opening
-- `asset-checklist.md`: registered and missing assets
-- `shot-prompt-pack.md`: shot-by-shot prompt bundle
+## Core files for creators
 
-## Completion criteria
+- `timeline.story.json` — concise timeline story data
+- `timeline.panel.json` — panel-oriented view model
+- `panel.md` — readable timeline board
+- `index.html` — clickable timeline board (same as `panel.html`)
+- `prompt-pack.md` — reusable professional video prompt pack
 
-Treat run as successful when:
+## Internal helper files
 
-1. script exits with code `0`
-2. `validation.report.json` has `valid=true`
-3. `index.html` exists and contains `Timeline Creator Panel`
+- `planning.prompt.md` — prompt template for Claude planning stage
+- `timeline.plan.json` — normalized plan parsed from Claude output
+
+## Success criteria
+
+Treat the run as successful when:
+
+1. command exits with code `0`
+2. `index.html` exists and contains `Timeline Story Panel`
+3. `prompt-pack.md` exists and includes all shot ids
